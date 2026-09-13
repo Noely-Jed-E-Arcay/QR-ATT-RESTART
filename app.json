@@ -9,7 +9,11 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.raxedg.QRATT",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.raxedg.QRATT"
     },
     "web": {
       "output": "static",
@@ -37,7 +42,8 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-secure-store"
     ],
     "experiments": {
       "reactCompiler": true
@@ -45,7 +51,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1ec5f7ac-d99d-44bb-9638-e53bad02de76"
+        "projectId": "4b63ad85-ca43-4665-9f14-0c71e877a9a5"
       }
     },
     "owner": "raxedg"

@@ -1,10 +1,25 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import AppButton from '@/components/AppButton';
 import { COLORS } from '@/constants/colors';
-import { createEvent } from '@/lib/database';
+import { useAuth } from '@/lib/auth';
+import { createEvent } from '@/lib/events';
+import { getProfile, type Role } from '@/lib/profiles';
 
 function toLocalISO(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -14,41 +29,158 @@ function toLocalISO(date: Date) {
   );
 }
 
+function formatDateTime(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${pad(date.getDate())}, ${date.getFullYear()} at ${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+const QUICK_END_OPTIONS = [
+  { label: '+30 min', ms: 30 * 60 * 1000 },
+  { label: '+1 hour', ms: 60 * 60 * 1000 },
+  { label: '+2 hours', ms: 2 * 60 * 60 * 1000 },
+];
+
+type EditTarget = 'start' | 'end';
+
 export default function TeacherScreen() {
+  const { user } = useAuth();
+
+  const [role, setRole] = useState<Role | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
   const [title, setTitle] = useState('');
   const [eventId, setEventId] = useState('');
-  const [start, setStart] = useState(toLocalISO(new Date()));
-  const [end, setEnd] = useState(toLocalISO(new Date(Date.now() + 60 * 60 * 1000)));
+  const [startDate, setStartDate] = useState(() => new Date());
+  const [endDate, setEndDate] = useState(
+    () => new Date(Date.now() + 60 * 60 * 1000)
+  );
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editingPart, setEditingPart] = useState<'date' | 'time'>('date');
   const [payload, setPayload] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      if (!user) {
+        setRoleLoading(false);
+        return () => {active = false;};
+      }
+      getProfile(user.id).then((profile) => {
+        if (!active) return;
+        setRole(profile?.role ?? 'student');
+        setRoleLoading(false);
+      });
+      return () => {active = false;};
+    }, [user])
+  );
+
+  if (roleLoading) {
+    return (
+      <View style={styles.lockContainer}>
+        <Text style={styles.lockTitle}>Checking your account...</Text>
+      </View>
+    );
+  }
+
+  if (role !== 'teacher') {
+    return (
+      <View style={styles.lockContainer}>
+        <Ionicons
+          name="lock-closed-outline"
+          size={48}
+          color={COLORS.primary}
+        />
+        <Text style={styles.lockTitle}>Teachers Only</Text>
+        <Text style={styles.lockSubtitle}>
+          Only teacher accounts can create events.
+        </Text>
+      </View>
+    );
+  }
+
+  const isAndroid = Platform.OS === 'android';
+
+  const openPicker = (target: EditTarget) => {
+    setMessage(null);
+    setEditTarget(target);
+    setEditingPart('date');
+  };
+
+  const onPickerChange = (
+    event: DateTimePickerEvent,
+    selected?: Date
+  ) => {
+    if (!editTarget) return;
+
+    if (event.type === 'dismissed' || !selected) {
+      setEditTarget(null);
+      setEditingPart('date');
+      return;
+    }
+
+    const current = editTarget === 'start' ? startDate : endDate;
+    const next = new Date(current);
+
+    next.setFullYear(
+      selected.getFullYear(),
+      selected.getMonth(),
+      selected.getDate()
+    );
+
+    next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+
+    if (editTarget === 'start') {
+      setStartDate(next);
+    } else {
+      setEndDate(next);
+    }
+
+    if (isAndroid && editingPart === 'date') {
+      setEditingPart('time');
+    } else {
+      setEditTarget(null);
+      setEditingPart('date');
+    }
+  };
+
+  const handleQuickEnd = (ms: number) => {
+    setMessage(null);
+    setEndDate(new Date(startDate.getTime() + ms));
+  };
 
   const handleCreateEvent = () => {
     const event = {
       eventId: eventId.trim(),
       title: title.trim(),
-      start: start.trim(),
-      end: end.trim(),
+      start: toLocalISO(startDate),
+      end: toLocalISO(endDate),
     };
 
-    if (!event.eventId || !event.title || !event.start || !event.end) {
-      setMessage('All fields are required.');
+    if (!event.eventId || !event.title) {
+      setMessage('Event title and code are required.');
       return;
     }
 
-    const startTime = new Date(event.start).getTime();
-    const endTime = new Date(event.end).getTime();
-    if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
-      setMessage('Invalid date format. Use YYYY-MM-DDTHH:MM:SS');
-      return;
-    }
-    if (startTime >= endTime) {
-      setMessage('Start time must be before end time.');
+    if (endDate.getTime() <= startDate.getTime()) {
+      setMessage('End time must be after start time.');
       return;
     }
 
     createEvent(event).then(() => {
       setMessage('Event saved! Scan the QR with the Scan tab to test it.');
-      setPayload(JSON.stringify({ v: 1, ...event }));
+      setPayload(
+        JSON.stringify({
+          v: 1,
+          event: event.eventId,
+          title: event.title,
+          start: event.start,
+          end: event.end,
+        })
+      );
     });
   };
 
@@ -82,25 +214,35 @@ export default function TeacherScreen() {
         autoCapitalize="characters"
       />
 
-      <Text style={styles.label}>Start (YYYY-MM-DDTHH:MM:SS)</Text>
-      <TextInput
-        style={styles.input}
-        value={start}
-        onChangeText={setStart}
-        placeholder="2026-08-07T09:00:00"
-        placeholderTextColor={COLORS.textSecondary}
-        autoCapitalize="none"
+      <Text style={styles.label}>Starts</Text>
+      <PickerField
+        value={formatDateTime(startDate)}
+        icon="sunny-outline"
+        onPress={() => openPicker('start')}
       />
 
-      <Text style={styles.label}>End (YYYY-MM-DDTHH:MM:SS)</Text>
-      <TextInput
-        style={styles.input}
-        value={end}
-        onChangeText={setEnd}
-        placeholder="2026-08-07T10:00:00"
-        placeholderTextColor={COLORS.textSecondary}
-        autoCapitalize="none"
+      <Text style={styles.label}>Ends</Text>
+      <PickerField
+        value={formatDateTime(endDate)}
+        icon="moon-outline"
+        onPress={() => openPicker('end')}
       />
+
+      <View style={styles.chipRow}>
+        {QUICK_END_OPTIONS.map((option) => (
+          <Pressable
+            key={option.label}
+            style={styles.chip}
+            onPress={() => handleQuickEnd(option.ms)}
+          >
+            <Text style={styles.chipText}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.hint}>
+        Tap a chip to set the end time from start.
+      </Text>
 
       {message && <Text style={styles.message}>{message}</Text>}
 
@@ -111,18 +253,57 @@ export default function TeacherScreen() {
         onPress={handleCreateEvent}
       />
 
+      {editTarget && (
+        <View style={styles.pickerContainer}>
+          <DateTimePicker
+            value={editTarget === 'start' ? startDate : endDate}
+            mode={isAndroid ? editingPart : 'datetime'}
+            display={isAndroid ? 'default' : 'spinner'}
+            onChange={onPickerChange}
+          />
+        </View>
+      )}
+
       {payload && (
         <View style={styles.resultCard}>
           <Text style={styles.resultTitle}>
             Scan this QR code with the Scan tab:
           </Text>
+
           <View style={styles.qrBox}>
             <QRCode value={payload} size={200} />
           </View>
+
           <Text style={styles.payloadText}>{payload}</Text>
         </View>
       )}
     </ScrollView>
+  );
+}
+
+type PickerFieldProps = {
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+};
+
+function PickerField({ value, icon, onPress }: PickerFieldProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.pickerField,
+        pressed && styles.pickerFieldPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Ionicons name={icon} size={20} color={COLORS.primary} />
+      <Text style={styles.pickerValue}>{value}</Text>
+      <Ionicons
+        name="calendar-outline"
+        size={18}
+        color={COLORS.textSecondary}
+      />
+    </Pressable>
   );
 }
 
@@ -135,6 +316,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 40,
+  },
+  lockContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  lockTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  lockSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
   },
   title: {
     fontSize: 20,
@@ -164,6 +366,51 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: COLORS.textPrimary,
+  },
+  pickerField: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pickerFieldPressed: {
+    backgroundColor: COLORS.surface,
+  },
+  pickerValue: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+    marginHorizontal: 10,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  chip: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  hint: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 6,
+  },
+  pickerContainer: {
+    marginTop: 12,
+    alignItems: 'center',
   },
   message: {
     fontSize: 14,
