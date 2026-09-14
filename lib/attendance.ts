@@ -16,7 +16,7 @@ export async function registerAttendance(
   }
 
   const payload = parsed.payload;
-
+  
   const now = Date.now();
   const start = payload.start
     ? new Date(payload.start).getTime()
@@ -201,12 +201,35 @@ export async function getTeacherEventAttendance(
 export async function getTeacherEventSummary(
   teacherId: string
 ): Promise<TeacherEventSummary[]> {
-  const events = await getTeacherEventAttendance(teacherId);
+  const { data: events, error: eventError } = await supabase
+    .from('events')
+    .select('id, event_code, title')
+    .eq('created_by', teacherId)
+    .order('created_at', { ascending: false });
 
-  return events.map((event) => ({
-    eventId: event.eventId,
-    eventCode: event.eventCode,
-    title: event.title,
-    attendeeCount: event.attendeeCount,
+  if (eventError || !events) return [];
+
+  const eventIds = events.map((e: any) => e.id);
+
+  if (eventIds.length === 0) return [];
+
+  const { data: attRows, error: attError } = await supabase
+    .from('attendance')
+    .select('event_id')
+    .in('event_id', eventIds);
+
+  if (attError || !attRows) return [];
+
+  const counts: Record<string, number> = {};
+
+  attRows.forEach((r: any) => {
+    counts[r.event_id] = (counts[r.event_id] ?? 0) + 1;
+  });
+
+  return events.map((e: any) => ({
+    eventId: e.id,
+    eventCode: e.event_code,
+    title: e.title,
+    attendeeCount: counts[e.id] ?? 0,
   }));
 }
