@@ -30,6 +30,7 @@ export type ParseQRResult =
 
 export function parseQRPayload(raw: string): ParseQRResult {
   let parsed: any;
+
   try {
     parsed = JSON.parse(raw);
   } catch {
@@ -42,4 +43,3 @@ export function parseQRPayload(raw: string): ParseQRResult {
 
   return { ok: true, payload: parsed as QRPayload };
 }
-

@@ -4,7 +4,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/lib/auth';
-import { getAttendanceHistory, type AttendanceRecord } from '@/lib/database';
+import { getAttendanceHistory, type AttendanceRecord } from '@/lib/attendance';
 import { getTeacherEventAttendance, TeacherEventAttendance } from '@/lib/attendance';
 import { getProfile, type Role } from '@/lib/profiles';
 

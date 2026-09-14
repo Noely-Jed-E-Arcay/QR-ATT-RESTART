@@ -66,16 +66,23 @@ export default function TeacherScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
+
       if (!user) {
         setRoleLoading(false);
-        return () => {active = false;};
+        return () => {
+          active = false;
+        };
       }
+
       getProfile(user.id).then((profile) => {
         if (!active) return;
         setRole(profile?.role ?? 'student');
         setRoleLoading(false);
       });
-      return () => {active = false;};
+
+      return () => {
+        active = false;
+      };
     }, [user])
   );
 
@@ -154,14 +161,14 @@ export default function TeacherScreen() {
   };
 
   const handleCreateEvent = () => {
-    const event = {
+    const eventData = {
       eventId: eventId.trim(),
       title: title.trim(),
       start: toLocalISO(startDate),
       end: toLocalISO(endDate),
     };
 
-    if (!event.eventId || !event.title) {
+    if (!eventData.eventId || !eventData.title) {
       setMessage('Event title and code are required.');
       return;
     }
@@ -171,17 +178,14 @@ export default function TeacherScreen() {
       return;
     }
 
-    createEvent(event).then(() => {
+    createEvent(eventData).then(({ error }) => {
+      if (error) {
+        setMessage('Could not save the event. Please try again.');
+        return;
+      }
+
       setMessage('Event saved! Scan the QR with the Scan tab to test it.');
-      setPayload(
-        JSON.stringify({
-          v: 1,
-          event: event.eventId,
-          title: event.title,
-          start: event.start,
-          end: event.end,
-        })
-      );
+      setPayload(buildQRPayload(eventData));
     });
   };
 
