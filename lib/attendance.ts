@@ -148,6 +148,13 @@ export type TeacherEventAttendance = {
   }[];
 };
 
+export type TeacherEventSummary = {
+  eventId: string;
+  eventCode: string;
+  title: string;
+  attendeeCount: number;
+};
+
 export async function getTeacherEventAttendance(
   teacherId: string
 ): Promise<TeacherEventAttendance[]> {
@@ -189,4 +196,17 @@ export async function getTeacherEventAttendance(
       })),
     };
   });
+}
+
+export async function getTeacherEventSummary(
+  teacherId: string
+): Promise<TeacherEventSummary[]> {
+  const events = await getTeacherEventAttendance(teacherId);
+
+  return events.map((event) => ({
+    eventId: event.eventId,
+    eventCode: event.eventCode,
+    title: event.title,
+    attendeeCount: event.attendeeCount,
+  }));
 }
