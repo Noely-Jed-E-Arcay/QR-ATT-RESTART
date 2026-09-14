@@ -20,6 +20,7 @@ import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/lib/auth';
 import { createEvent } from '@/lib/events';
 import { getProfile, type Role } from '@/lib/profiles';
+import { buildQRPayload } from '@/lib/qr';
 
 function toLocalISO(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
