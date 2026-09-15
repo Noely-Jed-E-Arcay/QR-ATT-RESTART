@@ -9,21 +9,14 @@ export async function registerAttendance(
   const parsed = parseQRPayload(rawPayload);
 
   if (!parsed.ok) {
-    return {
-      success: false,
-      message: parsed.message,
-    };
+    return { success: false, message: parsed.message };
   }
 
   const payload = parsed.payload;
 
   const now = Date.now();
-  const start = payload.start
-    ? new Date(payload.start).getTime()
-    : null;
-  const end = payload.end
-    ? new Date(payload.end).getTime()
-    : null;
+  const start = payload.start ? new Date(payload.start).getTime() : null;
+  const end = payload.end ? new Date(payload.end).getTime() : null;
 
   if (start && now < start) {
     return {
@@ -40,6 +33,7 @@ export async function registerAttendance(
   }
 
   const title = payload.title ?? payload.event;
+
   let event: { id: string; title: string } | null = null;
 
   const foundEvent = await getEventByCode(payload.event);
@@ -123,9 +117,7 @@ export async function getAttendanceHistory(
     .eq('student_id', studentId)
     .order('scanned_at', { ascending: false });
 
-  if (error || !data) {
-    return [];
-  }
+  if (error || !data) return [];
 
   return data.map((row: any) => ({
     id: row.id,
@@ -144,8 +136,8 @@ export type TeacherEventAttendance = {
   attendeeCount: number;
   attendees: {
     studentId: string;
-    studentName: string | null;
     scannedAt: string;
+    studentName: string | null;
   }[];
 };
 
@@ -188,9 +180,7 @@ export async function getTeacherEventAttendance(
   if (attError || !attendance) return [];
 
   return events.map((e: any) => {
-    const rows = attendance.filter(
-      (a: any) => a.event_id === e.id
-    );
+    const rows = attendance.filter((a: any) => a.event_id === e.id);
 
     return {
       eventId: e.id,
@@ -201,8 +191,8 @@ export async function getTeacherEventAttendance(
       attendeeCount: rows.length,
       attendees: rows.map((a: any) => ({
         studentId: a.student_id,
-        studentName: a.profiles?.full_name ?? null,
         scannedAt: a.scanned_at,
+        studentName: a.profiles?.full_name ?? null,
       })),
     };
   });

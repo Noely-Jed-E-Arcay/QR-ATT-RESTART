@@ -4,8 +4,12 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/lib/auth';
-import { getAttendanceHistory, type AttendanceRecord } from '@/lib/attendance';
-import { getTeacherEventAttendance, TeacherEventAttendance } from '@/lib/attendance';
+import {
+  getAttendanceHistory,
+  type AttendanceRecord,
+  getTeacherEventAttendance,
+  type TeacherEventAttendance,
+} from '@/lib/attendance';
 import { getProfile, type Role } from '@/lib/profiles';
 
 export default function HistoryScreen() {
@@ -15,27 +19,29 @@ export default function HistoryScreen() {
   const [studentRecords, setStudentRecords] = useState<AttendanceRecord[]>([]);
   const [teacherEvents, setTeacherEvents] = useState<TeacherEventAttendance[]>([]);
 
-
   const load = useCallback(async () => {
-  if (!user) { setLoading(false); return; }
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-  const profile = await getProfile(user.id);
-  const currentRole = profile?.role ?? 'student';
-  setRole(currentRole);
+    const profile = await getProfile(user.id);
+    const currentRole = profile?.role ?? 'student';
 
-  if (currentRole === 'teacher') {
-    const events = await getTeacherEventAttendance(user.id);
-    setTeacherEvents(events);
-    setStudentRecords([]);
-  } else {
-    const records = await getAttendanceHistory(user.id);
-    setStudentRecords(records);
-    setTeacherEvents([]);
-  }
+    setRole(currentRole);
 
-  setLoading(false);
-}, [user]);
+    if (currentRole === 'teacher') {
+      const events = await getTeacherEventAttendance(user.id);
+      setTeacherEvents(events);
+      setStudentRecords([]);
+    } else {
+      const records = await getAttendanceHistory(user.id);
+      setStudentRecords(records);
+      setTeacherEvents([]);
+    }
 
+    setLoading(false);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,8 +51,8 @@ export default function HistoryScreen() {
 
   if (role === 'teacher') {
     function shortId(id: string) {
-  return id ? `…${id.slice(-8)}` : 'unknown';
-}
+      return id ? `…${id.slice(-8)}` : 'unknown';
+    }
 
     return (
       <View style={styles.container}>
@@ -86,7 +92,8 @@ export default function HistoryScreen() {
                 {item.attendees.map((attendee) => (
                   <View key={`${item.eventId}-${attendee.studentId}`}>
                     <Text style={styles.eventMeta}>
-                      {attendee.studentName ?? shortId(attendee.studentId)} - {formatDate(attendee.scannedAt)}
+                      {attendee.studentName ?? shortId(attendee.studentId)} -{' '}
+                      {formatDate(attendee.scannedAt)}
                     </Text>
                   </View>
                 ))}
@@ -97,7 +104,7 @@ export default function HistoryScreen() {
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Attendance History</Text>
@@ -117,7 +124,9 @@ export default function HistoryScreen() {
             <View style={styles.card}>
               <Text style={styles.eventTitle}>{item.eventTitle}</Text>
               <Text style={styles.eventMeta}>{item.eventId}</Text>
-              <Text style={styles.eventMeta}>{formatDate(item.scannedAt)}</Text>
+              <Text style={styles.eventMeta}>
+                {formatDate(item.scannedAt)}
+              </Text>
             </View>
           )}
         />
