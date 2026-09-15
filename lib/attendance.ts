@@ -16,7 +16,7 @@ export async function registerAttendance(
   }
 
   const payload = parsed.payload;
-  
+
   const now = Date.now();
   const start = payload.start
     ? new Date(payload.start).getTime()
@@ -144,6 +144,7 @@ export type TeacherEventAttendance = {
   attendeeCount: number;
   attendees: {
     studentId: string;
+    studentName: string | null;
     scannedAt: string;
   }[];
 };
@@ -172,7 +173,15 @@ export async function getTeacherEventAttendance(
 
   const { data: attendance, error: attError } = await supabase
     .from('attendance')
-    .select('student_id, scanned_at, event_id')
+    .select(`
+      student_id,
+      scanned_at,
+      event_id,
+      profiles (
+        full_name,
+        email
+      )
+    `)
     .in('event_id', eventIds)
     .order('scanned_at', { ascending: false });
 
@@ -192,6 +201,7 @@ export async function getTeacherEventAttendance(
       attendeeCount: rows.length,
       attendees: rows.map((a: any) => ({
         studentId: a.student_id,
+        studentName: a.profiles?.full_name ?? null,
         scannedAt: a.scanned_at,
       })),
     };

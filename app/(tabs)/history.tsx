@@ -86,7 +86,7 @@ export default function HistoryScreen() {
                 {item.attendees.map((attendee) => (
                   <View key={`${item.eventId}-${attendee.studentId}`}>
                     <Text style={styles.eventMeta}>
-                      {shortId(attendee.studentId)} - {formatDate(attendee.scannedAt)}
+                      {attendee.studentName ?? shortId(attendee.studentId)} - {formatDate(attendee.scannedAt)}
                     </Text>
                   </View>
                 ))}
