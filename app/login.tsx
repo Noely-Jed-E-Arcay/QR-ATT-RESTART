@@ -91,11 +91,10 @@ export default function LoginScreen() {
                 secureTextEntry
                 editable={!loading}
               />
-
               {error && <Text style={styles.error}>{error}</Text>}
-
-              <Text></Text>
+              <Text> </Text>
               {loading ? (
+                
                 <ActivityIndicator
                   size="large"
                   color={COLORS.primary}
@@ -168,7 +167,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
     marginBottom: 6,
-    marginTop: 10,
   },
 
   input: {

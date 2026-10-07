@@ -21,6 +21,7 @@ export default function AppButton({ title, icon, theme, onPress }: Props) {
             borderWidth: 1,
             borderColor: COLORS.primary,
             borderRadius: 10,
+            
           },
         ]}
       >
